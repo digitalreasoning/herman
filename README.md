@@ -10,11 +10,8 @@ Basic Use
 ```java
 
 Iterable<MyServiceInterface> implementations =
-    IsolatedServiceSet.loader(MyServiceInterface.class)
-                      .negativeFilters(new String[] {
-                          "com.example.myapi.internal.*"
-                      })
-                      .positiveFilters(new String[] {
-                          "com.example.myapi.*"
-                      }).load();
+    IsolatedServiceLoader.builder(MyServiceInterface.class)
+                         .negativeFilters("com.example.myapi.internal.*")
+                         .positiveFilters("com.example.myapi.*")
+                         .build();
 ```

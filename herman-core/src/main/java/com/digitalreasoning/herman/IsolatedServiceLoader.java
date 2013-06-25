@@ -18,6 +18,7 @@ package com.digitalreasoning.herman;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -26,7 +27,7 @@ import java.util.NoSuchElementException;
 import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
 
-public class IsolatedServiceSet<S> implements Iterable<S>
+public class IsolatedServiceLoader<S> implements Iterable<S>
 {
 	private static final String ISOLATED_INTERFACE_PREFIX = "META-INF/isolated/";
 	private final Class<S> service;
@@ -36,7 +37,7 @@ public class IsolatedServiceSet<S> implements Iterable<S>
 	private final String[] negativeFilters;
 	private final String[] positiveFilters;
 
-	private IsolatedServiceSet(Class<S> service, ClassLoader classLoader, Map<URL, List<URL>> serviceJars, String[] negativeFilters, final String[] positiveFilters)
+	private IsolatedServiceLoader(Class<S> service, ClassLoader classLoader, Map<URL, List<URL>> serviceJars, String[] negativeFilters, final String[] positiveFilters)
 	{
 		this.service = service;
 		this.classLoader = classLoader;
@@ -95,49 +96,71 @@ public class IsolatedServiceSet<S> implements Iterable<S>
 		};
 	}
 
-	public static <S> Loader<S> loader(Class<S> service)
+	public static <S> Builder<S> builder(Class<S> service)
 	{
-		return new Loader<S>(service);
+		return new Builder<S>(service);
 	}
 
-	public static class Loader<S>
+	public static class Builder<S>
 	{
 		private Class<S> service;
 		private String[] negativeFilters;
 		private String[] positiveFilters;
 		private ClassLoader classLoader;
 
-		private Loader(Class<S> service)
+		private Builder(Class<S> service)
 		{
 			this.service = service;
 		}
 
-		public Loader<S> negativeFilters(String[] filters)
+		private String[] asArray(final Iterable<String> filters)
+		{
+			List<String> list = new ArrayList();
+			for(String filter: filters)
+			{
+				list.add(filter);
+			}
+			return list.toArray(new String[list.size()]);
+		}
+
+		public Builder<S> negativeFilters(Iterable<String> filters)
+		{
+			this.negativeFilters = asArray(filters);
+			return this;
+		}
+
+		public Builder<S> positiveFilters(Iterable<String> filters)
+		{
+			this.positiveFilters = asArray(filters);
+			return this;
+		}
+
+		public Builder<S> negativeFilters(String ... filters)
 		{
 			this.negativeFilters = filters;
 			return this;
 		}
 
-		public Loader<S> positiveFilters(String[] filters)
+		public Builder<S> positiveFilters(String ... filters)
 		{
 			this.positiveFilters = filters;
 			return this;
 		}
 
-		public Loader<S> classLoader(ClassLoader classLoader)
+		public Builder<S> classLoader(ClassLoader classLoader)
 		{
 			this.classLoader = classLoader;
 			return this;
 		}
 
-		public IsolatedServiceSet<S> load() throws IOException
+		public IsolatedServiceLoader<S> build() throws IOException
 		{
 			this.negativeFilters = this.negativeFilters == null ? new String[0] : this.negativeFilters;
 			this.positiveFilters = this.positiveFilters == null ? new String[0] : this.positiveFilters;
 			this.classLoader = this.classLoader == null ? Thread.currentThread().getContextClassLoader() : this.classLoader;
 			ResourceFinder resourceFinder = new ResourceFinder(this.classLoader);
 			Map<URL, List<URL>> serviceJars = resourceFinder.getNestedJars(ISOLATED_INTERFACE_PREFIX + this.service.getName());
-			return new IsolatedServiceSet<S>(this.service, this.classLoader, serviceJars, this.negativeFilters, this.positiveFilters);
+			return new IsolatedServiceLoader<S>(this.service, this.classLoader, serviceJars, this.negativeFilters, this.positiveFilters);
 		}
 	}
 }
