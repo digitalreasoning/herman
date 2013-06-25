@@ -34,16 +34,16 @@ public class IsolatedServiceLoader<S> implements Iterable<S>
 	private final ClassLoader classLoader;
 	private final Map<URL, List<URL>> serviceJars;
 	private final Map<URL, URLClassLoader> serviceClassLoaders;
-	private final String[] negativeFilters;
-	private final String[] positiveFilters;
+	private final String[] excludes;
+	private final String[] includes;
 
-	private IsolatedServiceLoader(Class<S> service, ClassLoader classLoader, Map<URL, List<URL>> serviceJars, String[] negativeFilters, final String[] positiveFilters)
+	private IsolatedServiceLoader(Class<S> service, ClassLoader classLoader, Map<URL, List<URL>> serviceJars, String[] excludes, final String[] includes)
 	{
 		this.service = service;
 		this.classLoader = classLoader;
 		this.serviceJars = serviceJars;
-		this.negativeFilters = negativeFilters;
-		this.positiveFilters = positiveFilters;
+		this.excludes = excludes;
+		this.includes = includes;
 		this.serviceClassLoaders = new HashMap<URL, URLClassLoader>();
 	}
 
@@ -75,7 +75,7 @@ public class IsolatedServiceLoader<S> implements Iterable<S>
 				}else
 				{
 					List<URL> jarUrls = entry.getValue();
-					ucl = new URLClassLoader(jarUrls.toArray(new URL[jarUrls.size()]), new FilteredClassLoader(classLoader, positiveFilters, negativeFilters));
+					ucl = new URLClassLoader(jarUrls.toArray(new URL[jarUrls.size()]), new FilteredClassLoader(classLoader, includes, excludes));
 					serviceClassLoaders.put(entry.getKey(), ucl);
 				}
 				
@@ -104,8 +104,8 @@ public class IsolatedServiceLoader<S> implements Iterable<S>
 	public static class Builder<S>
 	{
 		private Class<S> service;
-		private String[] negativeFilters;
-		private String[] positiveFilters;
+		private String[] excludes;
+		private String[] includes;
 		private ClassLoader classLoader;
 
 		private Builder(Class<S> service)
@@ -123,27 +123,27 @@ public class IsolatedServiceLoader<S> implements Iterable<S>
 			return list.toArray(new String[list.size()]);
 		}
 
-		public Builder<S> negativeFilters(Iterable<String> filters)
+		public Builder<S> excludes(Iterable<String> filters)
 		{
-			this.negativeFilters = asArray(filters);
+			this.excludes = asArray(filters);
 			return this;
 		}
 
-		public Builder<S> positiveFilters(Iterable<String> filters)
+		public Builder<S> includes(Iterable<String> filters)
 		{
-			this.positiveFilters = asArray(filters);
+			this.includes = asArray(filters);
 			return this;
 		}
 
-		public Builder<S> negativeFilters(String ... filters)
+		public Builder<S> excludes(String... filters)
 		{
-			this.negativeFilters = filters;
+			this.excludes = filters;
 			return this;
 		}
 
-		public Builder<S> positiveFilters(String ... filters)
+		public Builder<S> includes(String... filters)
 		{
-			this.positiveFilters = filters;
+			this.includes = filters;
 			return this;
 		}
 
@@ -155,12 +155,12 @@ public class IsolatedServiceLoader<S> implements Iterable<S>
 
 		public IsolatedServiceLoader<S> build() throws IOException
 		{
-			this.negativeFilters = this.negativeFilters == null ? new String[0] : this.negativeFilters;
-			this.positiveFilters = this.positiveFilters == null ? new String[0] : this.positiveFilters;
+			this.excludes = this.excludes == null ? new String[0] : this.excludes;
+			this.includes = this.includes == null ? new String[0] : this.includes;
 			this.classLoader = this.classLoader == null ? Thread.currentThread().getContextClassLoader() : this.classLoader;
 			ResourceFinder resourceFinder = new ResourceFinder(this.classLoader);
 			Map<URL, List<URL>> serviceJars = resourceFinder.getNestedJars(ISOLATED_INTERFACE_PREFIX + this.service.getName());
-			return new IsolatedServiceLoader<S>(this.service, this.classLoader, serviceJars, this.negativeFilters, this.positiveFilters);
+			return new IsolatedServiceLoader<S>(this.service, this.classLoader, serviceJars, this.excludes, this.includes);
 		}
 	}
 }

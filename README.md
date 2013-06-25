@@ -11,7 +11,7 @@ Basic Use
 
 Iterable<MyServiceInterface> implementations =
     IsolatedServiceLoader.builder(MyServiceInterface.class)
-                         .negativeFilters("com.example.myapi.internal.*")
-                         .positiveFilters("com.example.myapi.*")
+                         .excludes("com.example.myapi.internal.*")
+                         .includes("com.example.myapi.*")
                          .build();
 ```
