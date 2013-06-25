@@ -22,7 +22,7 @@ package com.digitalreasoning.herman;
 import java.net.URL;
 
 /**
- * FireWallClassLoader in apache cxf common
+ * Copied from FireWallClassLoader in apache cxf common
  */
 class FilteredClassLoader extends ClassLoader
 {
