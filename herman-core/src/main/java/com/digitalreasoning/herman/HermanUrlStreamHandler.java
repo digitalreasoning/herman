@@ -27,9 +27,9 @@ import java.net.URLStreamHandlerFactory;
 import java.util.HashMap;
 import java.util.Map;
 
-public class JarJarUrlStreamHandler extends URLStreamHandler
+public class HermanUrlStreamHandler extends URLStreamHandler
 {
-	public static final String PROTOCOL = "jarjar";
+	public static final String PROTOCOL = "herman";
 	public static final String JARJAR_SEPARATOR = "^/";
 	public static final String JAR_SEPARATOR = "!/";
 
@@ -46,7 +46,7 @@ public class JarJarUrlStreamHandler extends URLStreamHandler
 		{
 			if (protocol.equals(PROTOCOL))
 			{
-				return new JarJarUrlStreamHandler();
+				return new HermanUrlStreamHandler();
 			}
 			return null;
 		}

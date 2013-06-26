@@ -42,7 +42,7 @@ public class ResourceFinderTest
 	@Before
 	public void setUp() throws Exception
 	{
-		JarJarUrlStreamHandler.register();
+		HermanUrlStreamHandler.register();
 		File parentDir = tmpdir.getDir();
 		parentDir.mkdirs();
 		File jarFile1 = new File(parentDir, "example1.jar");
