@@ -36,14 +36,17 @@ public class IsolatedServiceLoader<S> implements Iterable<S>
 	private final Map<URL, URLClassLoader> serviceClassLoaders;
 	private final String[] excludes;
 	private final String[] includes;
+	private final ServiceLoaderStrategy<S> serviceLoaderStrategy;
 
-	private IsolatedServiceLoader(Class<S> service, ClassLoader classLoader, Map<URL, List<URL>> serviceJars, String[] excludes, final String[] includes)
+	private IsolatedServiceLoader(Class<S> service, ClassLoader classLoader, Map<URL, List<URL>> serviceJars, String[] excludes, final String[] includes,
+	                              final ServiceLoaderStrategy<S> serviceLoaderStrategy)
 	{
 		this.service = service;
 		this.classLoader = classLoader;
 		this.serviceJars = serviceJars;
 		this.excludes = excludes;
 		this.includes = includes;
+		this.serviceLoaderStrategy = serviceLoaderStrategy;
 		this.serviceClassLoaders = new HashMap<URL, URLClassLoader>();
 	}
 
@@ -119,6 +122,7 @@ public class IsolatedServiceLoader<S> implements Iterable<S>
 		private String[] excludes;
 		private String[] includes;
 		private ClassLoader classLoader;
+		private ServiceLoaderStrategy<S> serviceLoaderStrategy = new ServiceLoaderStrategy.Default<S>();
 
 		private Builder(Class<S> service)
 		{
@@ -165,6 +169,12 @@ public class IsolatedServiceLoader<S> implements Iterable<S>
 			return this;
 		}
 
+		public Builder<S> strategy(ServiceLoaderStrategy<S> serviceLoaderStrategy)
+		{
+			this.serviceLoaderStrategy = serviceLoaderStrategy;
+			return this;
+		}
+
 		public IsolatedServiceLoader<S> build() throws IOException
 		{
 			this.excludes = this.excludes == null ? new String[0] : this.excludes;
@@ -172,7 +182,7 @@ public class IsolatedServiceLoader<S> implements Iterable<S>
 			this.classLoader = this.classLoader == null ? Thread.currentThread().getContextClassLoader() : this.classLoader;
 			ResourceFinder resourceFinder = new ResourceFinder(this.classLoader);
 			Map<URL, List<URL>> serviceJars = resourceFinder.getNestedJars(ISOLATED_INTERFACE_PREFIX + this.service.getName());
-			return new IsolatedServiceLoader<S>(this.service, this.classLoader, serviceJars, this.excludes, this.includes);
+			return new IsolatedServiceLoader<S>(this.service, this.classLoader, serviceJars, this.excludes, this.includes, serviceLoaderStrategy);
 		}
 	}
 }
