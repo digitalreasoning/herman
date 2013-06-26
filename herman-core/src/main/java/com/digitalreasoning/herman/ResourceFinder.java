@@ -99,11 +99,11 @@ class ResourceFinder
                 continue;
             }
             
-            URL resource = new URL(JarJarUrlStreamHandler.PROTOCOL, location.getHost(), location.getPort(), JarJarUrlStreamHandler.PROTOCOL + ":" + location.getFile()
+            URL resource = new URL(HermanUrlStreamHandler.PROTOCOL, location.getHost(), location.getPort(), HermanUrlStreamHandler.PROTOCOL + ":" + location.getFile()
                                                                                                                                                                   .replace
-		            (JarJarUrlStreamHandler
-		                                                                                                                                                    .JAR_SEPARATOR,
-                                                                                                                     JarJarUrlStreamHandler.JARJAR_SEPARATOR) + name + JarJarUrlStreamHandler.JARJAR_SEPARATOR);
+		            (HermanUrlStreamHandler
+				             .JAR_SEPARATOR,
+		             HermanUrlStreamHandler.JARJAR_SEPARATOR) + name + HermanUrlStreamHandler.JARJAR_SEPARATOR);
             entryUrls.add(resource);
         }
         return entryUrls;
