@@ -71,6 +71,7 @@ class ResourceFinder
 			}
 			catch (Exception e)
 			{
+				throw new RuntimeException("Failed to read jar entries from : " + location, e);
 			}
 		}
 
@@ -98,7 +99,11 @@ class ResourceFinder
                 continue;
             }
             
-            URL resource = new URL("jarjar", location.getHost(), location.getPort(), "jarjar:" + location.getFile().replace(JarJarUrlStreamHandler.JAR_SEPARATOR, JarJarUrlStreamHandler.JARJAR_SEPARATOR) + name + JarJarUrlStreamHandler.JARJAR_SEPARATOR);
+            URL resource = new URL(HermanUrlStreamHandler.PROTOCOL, location.getHost(), location.getPort(), HermanUrlStreamHandler.PROTOCOL + ":" + location.getFile()
+                                                                                                                                                                  .replace
+		            (HermanUrlStreamHandler
+				             .JAR_SEPARATOR,
+		             HermanUrlStreamHandler.JARJAR_SEPARATOR) + name + HermanUrlStreamHandler.JARJAR_SEPARATOR);
             entryUrls.add(resource);
         }
         return entryUrls;
