@@ -29,7 +29,7 @@ import java.util.Map;
 
 public class JarJarUrlStreamHandler extends URLStreamHandler
 {
-	public static final String PROTOCOL = "jarjar";
+	public static final String PROTOCOL = "herman";
 	public static final String JARJAR_SEPARATOR = "^/";
 	public static final String JAR_SEPARATOR = "!/";
 
