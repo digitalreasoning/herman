@@ -52,16 +52,28 @@ public class IsolatedServiceLoader<S> implements Iterable<S>
 	{
 		return new Iterator<S>() {
 			Iterator<Map.Entry<URL, List<URL>>> iterator = serviceJars.entrySet().iterator();
+			Iterator<S> serviceIterator = null;
 
 			@Override
 			public boolean hasNext()
 			{
-				return iterator.hasNext();
+				return iterator.hasNext() || (serviceIterator != null && serviceIterator.hasNext());
 			}
 
 			@Override
 			public S next()
 			{
+				if(serviceIterator != null)
+				{
+					if(serviceIterator.hasNext())
+					{
+						return serviceIterator.next();
+					}
+					else
+					{
+						serviceIterator = null;
+					}
+				}
 				if (!iterator.hasNext())
 				{
 					throw new NoSuchElementException();
@@ -78,13 +90,13 @@ public class IsolatedServiceLoader<S> implements Iterable<S>
 					ucl = new URLClassLoader(jarUrls.toArray(new URL[jarUrls.size()]), new FilteredClassLoader(classLoader, includes, excludes));
 					serviceClassLoaders.put(entry.getKey(), ucl);
 				}
-				
-				ServiceLoader<S> serviceLoader = ServiceLoader.load(service, ucl);
-				if (!serviceLoader.iterator().hasNext())
+
+				serviceIterator = ServiceLoader.load(service, ucl).iterator();
+				if (!serviceIterator.hasNext())
 				{
 					throw new ServiceConfigurationError(service.getName());
 				}
-				return serviceLoader.iterator().next();
+				return serviceIterator.next();
 			}
 
 			@Override
