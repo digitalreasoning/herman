@@ -37,9 +37,10 @@ public class IsolatedServiceLoader<S> implements Iterable<S>
 	private final String[] excludes;
 	private final String[] includes;
 	private final ServiceLoaderStrategy<S> serviceLoaderStrategy;
+	private final boolean loadFromLocal;
 
 	private IsolatedServiceLoader(Class<S> service, ClassLoader classLoader, Map<URL, List<URL>> serviceJars, String[] excludes, final String[] includes,
-	                              final ServiceLoaderStrategy<S> serviceLoaderStrategy)
+	                              final ServiceLoaderStrategy<S> serviceLoaderStrategy, final boolean loadFromLocal)
 	{
 		this.service = service;
 		this.classLoader = classLoader;
@@ -47,6 +48,7 @@ public class IsolatedServiceLoader<S> implements Iterable<S>
 		this.excludes = excludes;
 		this.includes = includes;
 		this.serviceLoaderStrategy = serviceLoaderStrategy;
+		this.loadFromLocal = loadFromLocal;
 		this.serviceClassLoaders = new HashMap<URL, URLClassLoader>();
 	}
 
@@ -54,8 +56,21 @@ public class IsolatedServiceLoader<S> implements Iterable<S>
 	public Iterator<S> iterator()
 	{
 		return new Iterator<S>() {
-			Iterator<Map.Entry<URL, List<URL>>> iterator = serviceJars.entrySet().iterator();
+			final Iterator<ClassLoaderSource> iterator;
 			Iterator<S> serviceIterator = null;
+
+			{
+				List<ClassLoaderSource> sources = new ArrayList<ClassLoaderSource>();
+				for(Map.Entry<URL, List<URL>> entry: serviceJars.entrySet())
+				{
+					sources.add(new IsolatedClassLoaderSource(classLoader, entry, serviceClassLoaders, includes, excludes));
+				}
+				if(loadFromLocal)
+				{
+					sources.add(new SimpleClassLoaderSource(classLoader));
+				}
+				iterator = sources.iterator();
+			}
 
 			@Override
 			public boolean hasNext()
@@ -81,24 +96,9 @@ public class IsolatedServiceLoader<S> implements Iterable<S>
 				{
 					throw new NoSuchElementException();
 				}
-				Map.Entry<URL, List<URL>> entry = iterator.next();
-				
-				URLClassLoader ucl;
-				if(serviceClassLoaders.containsKey(entry.getKey()))
-				{
-					ucl = serviceClassLoaders.get(entry.getKey());
-				}else
-				{
-					List<URL> jarUrls = entry.getValue();
-					ucl = new URLClassLoader(jarUrls.toArray(new URL[jarUrls.size()]), new FilteredClassLoader(classLoader, includes, excludes));
-					serviceClassLoaders.put(entry.getKey(), ucl);
-				}
+				ClassLoaderSource classLoaderSource = iterator.next();
 
-				serviceIterator = ServiceLoader.load(service, ucl).iterator();
-				if (!serviceIterator.hasNext())
-				{
-					throw new ServiceConfigurationError(service.getName());
-				}
+				serviceIterator = serviceLoaderStrategy.runLoader(service, classLoaderSource.getClassLoader()).iterator();
 				return serviceIterator.next();
 			}
 
@@ -123,6 +123,7 @@ public class IsolatedServiceLoader<S> implements Iterable<S>
 		private String[] includes;
 		private ClassLoader classLoader;
 		private ServiceLoaderStrategy<S> serviceLoaderStrategy = new ServiceLoaderStrategy.Default<S>();
+		private boolean loadFromLocal = false;
 
 		private Builder(Class<S> service)
 		{
@@ -175,6 +176,18 @@ public class IsolatedServiceLoader<S> implements Iterable<S>
 			return this;
 		}
 
+		public Builder<S> loadFromLocal()
+		{
+			this.loadFromLocal = true;
+			return this;
+		}
+
+		public Builder<S> noLoadFromLocal()
+		{
+			this.loadFromLocal = false;
+			return this;
+		}
+
 		public IsolatedServiceLoader<S> build() throws IOException
 		{
 			this.excludes = this.excludes == null ? new String[0] : this.excludes;
@@ -182,7 +195,63 @@ public class IsolatedServiceLoader<S> implements Iterable<S>
 			this.classLoader = this.classLoader == null ? Thread.currentThread().getContextClassLoader() : this.classLoader;
 			ResourceFinder resourceFinder = new ResourceFinder(this.classLoader);
 			Map<URL, List<URL>> serviceJars = resourceFinder.getNestedJars(ISOLATED_INTERFACE_PREFIX + this.service.getName());
-			return new IsolatedServiceLoader<S>(this.service, this.classLoader, serviceJars, this.excludes, this.includes, serviceLoaderStrategy);
+			return new IsolatedServiceLoader<S>(this.service, this.classLoader, serviceJars, this.excludes, this.includes, serviceLoaderStrategy, loadFromLocal);
+		}
+	}
+
+	private static interface ClassLoaderSource
+	{
+		ClassLoader getClassLoader();
+	}
+
+	private static class SimpleClassLoaderSource implements ClassLoaderSource
+	{
+		private final ClassLoader classLoader;
+
+		private SimpleClassLoaderSource(final ClassLoader classLoader)
+		{
+			this.classLoader = classLoader;
+		}
+
+		@Override
+		public ClassLoader getClassLoader()
+		{
+			return this.classLoader;
+		}
+	}
+
+	private static class IsolatedClassLoaderSource implements ClassLoaderSource
+	{
+		private final ClassLoader parent;
+		private final Map.Entry<URL, List<URL>> entry;
+		private final Map<URL, URLClassLoader> classLoaderCache;
+		private final String[] includes;
+		private final String[] excludes;
+
+		private IsolatedClassLoaderSource(final ClassLoader parent, final Map.Entry<URL, List<URL>> entry, final Map<URL, URLClassLoader> classLoaderCache,
+		                                  final String[] includes, final String[] excludes)
+		{
+			this.parent = parent;
+			this.entry = entry;
+			this.classLoaderCache = classLoaderCache;
+			this.includes = includes;
+			this.excludes = excludes;
+		}
+
+		@Override
+		public ClassLoader getClassLoader()
+		{
+			URLClassLoader ucl;
+			if(classLoaderCache.containsKey(entry.getKey()))
+			{
+				ucl = classLoaderCache.get(entry.getKey());
+			}else
+			{
+				List<URL> jarUrls = entry.getValue();
+				ucl = new URLClassLoader(jarUrls.toArray(new URL[jarUrls.size()]), new FilteredClassLoader(parent, includes, excludes));
+				classLoaderCache.put(entry.getKey(), ucl);
+			}
+			return ucl;
 		}
 	}
 }
