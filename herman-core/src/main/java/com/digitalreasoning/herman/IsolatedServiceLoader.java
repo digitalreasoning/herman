@@ -70,36 +70,42 @@ public class IsolatedServiceLoader<S> implements Iterable<S>
 					sources.add(new SimpleClassLoaderSource(classLoader));
 				}
 				iterator = sources.iterator();
+				updateServiceIterator();
+			}
+
+			private void updateServiceIterator()
+			{
+				if(iterator.hasNext())
+				{
+					ClassLoaderSource classLoaderSource = iterator.next();
+
+					serviceIterator = serviceLoaderStrategy.runLoader(service, classLoaderSource.getClassLoader()).iterator();
+				}
+				else
+				{
+					serviceIterator = null;
+				}
 			}
 
 			@Override
 			public boolean hasNext()
 			{
-				return iterator.hasNext() || (serviceIterator != null && serviceIterator.hasNext());
+				return serviceIterator != null && serviceIterator.hasNext();
 			}
 
 			@Override
 			public S next()
 			{
-				if(serviceIterator != null)
+				if(serviceIterator == null)
 				{
-					if(serviceIterator.hasNext())
-					{
-						return serviceIterator.next();
-					}
-					else
-					{
-						serviceIterator = null;
-					}
+					throw new NoSuchElementException("No more services.");
 				}
-				if (!iterator.hasNext())
+				S next = serviceIterator.next();
+				if(!serviceIterator.hasNext())
 				{
-					throw new NoSuchElementException();
+					updateServiceIterator();
 				}
-				ClassLoaderSource classLoaderSource = iterator.next();
-
-				serviceIterator = serviceLoaderStrategy.runLoader(service, classLoaderSource.getClassLoader()).iterator();
-				return serviceIterator.next();
+				return next;
 			}
 
 			@Override
