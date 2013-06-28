@@ -24,7 +24,7 @@
 
     <groupId>com.digitalreasoning.herman</groupId>
     <artifactId>herman-parent</artifactId>
-    <version>0.2.0-SNAPSHOT</version>
+    <version>0.2.0</version>
 	<packaging>pom</packaging>
 	<name>Herman</name>
 	<description>A utility enabling a modifed service loader pattern that isolates implementations to private classloaders.</description>
