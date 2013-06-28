@@ -20,7 +20,6 @@
 package com.digitalreasoning.herman;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URL;
 import java.util.Enumeration;
 
@@ -32,10 +31,11 @@ import java.util.Enumeration;
  */
 class FilteredClassLoader extends ClassLoader
 {
-	private final String[] filters;
-	private final String[] fnFilters;
-	private final String[] negativeFilters;
-	private final String[] negativeFNFilters;
+	private final String[] positiveClassFilters;
+	private final String[] positiveResourceFilters;
+	private final String[] negativeClassFilters;
+	private final String[] negativeResourceFilters;
+
 	private final ClassLoader extensionClassLoader;
 
 	public FilteredClassLoader(ClassLoader parent, String[] fs)
@@ -47,11 +47,11 @@ class FilteredClassLoader extends ClassLoader
 	{
 		super(parent);
 
-		this.filters = processFilters(fs);
-		this.negativeFilters = processFilters(negativeFs);
+		this.positiveClassFilters = processFilters(fs);
+		this.negativeClassFilters = processFilters(negativeFs);
 
-		this.fnFilters = filters2FNFilters(this.filters);
-		this.negativeFNFilters = filters2FNFilters(this.negativeFilters);
+		this.positiveResourceFilters = filters2FNFilters(this.positiveClassFilters);
+		this.negativeResourceFilters = filters2FNFilters(this.negativeClassFilters);
 
 		extensionClassLoader = getSystemClassLoader().getParent();
 	}
@@ -91,11 +91,12 @@ class FilteredClassLoader extends ClassLoader
 		return f;
 	}
 
-	private boolean isExcluded(String name)
+	private boolean isExcluded(String name, boolean asResource)
 	{
-		if(negativeFilters != null)
+		final String[] filters = asResource ? negativeResourceFilters : negativeClassFilters;
+		if(filters != null)
 		{
-			for(String negativeFilter: negativeFilters)
+			for(String negativeFilter: filters)
 			{
 				if (name.startsWith(negativeFilter))
 				{
@@ -106,12 +107,13 @@ class FilteredClassLoader extends ClassLoader
 		return false;
 	}
 
-	private boolean isIncluded(String name)
+	private boolean isIncluded(String name, boolean asResource)
 	{
-		if(isExcluded(name))
+		if(isExcluded(name, asResource))
 		{
 			return false;
 		}
+		final String[] filters = asResource ? positiveResourceFilters : this.positiveClassFilters;
 		if (filters != null)
 		{
 			for(String filter: filters)
@@ -130,17 +132,27 @@ class FilteredClassLoader extends ClassLoader
 		}
 	}
 
+	private boolean isResourceIncluded(final String name)
+	{
+		return isIncluded(name, true);
+	}
+
+	private boolean isClassIncluded(final String name)
+	{
+		return isIncluded(name, false);
+	}
+
 	protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException
 	{
 		try
 		{
-			extensionClassLoader.loadClass(name);
+			return extensionClassLoader.loadClass(name);
 		}
 		catch (ClassNotFoundException e)
 		{
 			// purposefully do nothing - since it's not in the system class loader, now we need to apply the filters.
 		}
-		if(isIncluded(name))
+		if(isClassIncluded(name))
 		{
 			return super.loadClass(name, resolve);
 		}
@@ -153,7 +165,7 @@ class FilteredClassLoader extends ClassLoader
 	public URL getResource(String name)
 	{
 		URL resource = extensionClassLoader.getResource(name);
-		if(resource == null && isIncluded(name))
+		if(resource == null && isResourceIncluded(name))
 		{
 			resource = super.getResource(name);
 		}
@@ -163,7 +175,7 @@ class FilteredClassLoader extends ClassLoader
 	@Override
 	public Enumeration<URL> getResources(final String name) throws IOException
 	{
-		if(isIncluded(name))
+		if(isResourceIncluded(name))
 		{
 			return super.getResources(name);
 		}
