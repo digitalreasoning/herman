@@ -32,6 +32,10 @@ import java.util.jar.JarFile;
  */
 class ResourceFinder
 {
+	static
+	{
+		HermanUrlStreamHandler.register();
+	}
 
 	private final ClassLoader classLoader;
 

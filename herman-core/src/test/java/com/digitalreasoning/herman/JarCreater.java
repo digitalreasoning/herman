@@ -30,6 +30,11 @@ import org.apache.commons.io.IOUtils;
 
 public class JarCreater
 {
+	static
+	{
+		HermanUrlStreamHandler.register();
+	}
+
 	public static class Entry
 	{
 		private final String parentFolderName;
