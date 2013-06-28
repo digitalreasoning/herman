@@ -33,14 +33,23 @@ public class HermanUrlStreamHandler extends URLStreamHandler
 	public static final String JARJAR_SEPARATOR = "^/";
 	public static final String JAR_SEPARATOR = "!/";
 
+	static {
+		doRegister();
+	}
+
+	static void doRegister()
+	{
+		URL.setURLStreamHandlerFactory(new HermanUrlStreamHandler.HermanURLStreamHandlerFactory());
+	}
+
 	protected Map<String, File> extractedJars = new HashMap<String, File>();
 
 	public static void register()
 	{
-		URL.setURLStreamHandlerFactory(new JarJarURLStreamHandlerFactory());
+		// do nothing! - this still registers due to static block if this is the first time that this is called
 	}
 
-	public static class JarJarURLStreamHandlerFactory implements URLStreamHandlerFactory
+	public static class HermanURLStreamHandlerFactory implements URLStreamHandlerFactory
 	{
 		public URLStreamHandler createURLStreamHandler(String protocol)
 		{
