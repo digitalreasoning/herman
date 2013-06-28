@@ -79,7 +79,25 @@ public class IsolatedServiceLoader<S> implements Iterable<S>
 				{
 					ClassLoaderSource classLoaderSource = iterator.next();
 
-					serviceIterator = serviceLoaderStrategy.runLoader(service, classLoaderSource.getClassLoader()).iterator();
+					ClassLoader previousContextClassloader = Thread.currentThread().getContextClassLoader();
+                    ClassLoader serviceClassloader = classLoaderSource.getClassLoader();
+					try
+					{
+						Thread.currentThread().setContextClassLoader(serviceClassloader);
+						serviceIterator = serviceLoaderStrategy.runLoader(service, classLoaderSource.getClassLoader()).iterator();
+					}
+                    catch (Exception e)
+                    {
+                        throw new RuntimeException("Tried to load from classloader " + serviceClassloader, e);
+                    }
+                    catch (LinkageError e)
+                    {
+                        throw new RuntimeException("Tried to load from classloader " + serviceClassloader, e);
+                    }
+					finally
+					{
+						Thread.currentThread().setContextClassLoader(previousContextClassloader);
+					}
 				}
 				else
 				{
@@ -254,7 +272,7 @@ public class IsolatedServiceLoader<S> implements Iterable<S>
 			}else
 			{
 				List<URL> jarUrls = entry.getValue();
-				ucl = new URLClassLoader(jarUrls.toArray(new URL[jarUrls.size()]), new FilteredClassLoader(parent, includes, excludes));
+				ucl = new HermanClassLoader(jarUrls.toArray(new URL[jarUrls.size()]), new FilteredClassLoader(parent, includes, excludes), entry.getKey());
 				classLoaderCache.put(entry.getKey(), ucl);
 			}
 			return ucl;
