@@ -19,10 +19,16 @@
 
 package com.digitalreasoning.herman;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
+import java.util.Enumeration;
 
 /**
- * Copied from FireWallClassLoader in apache cxf common
+ * Copied from FireWallClassLoader in apache cxf common.
+ *
+ * The goal here is to wrap an existing classloader and restrict what classes can be loaded from it.  It is important to note that it will NEVER filter classes or resources from
+ * the extension or bootstrap classloader.
  */
 class FilteredClassLoader extends ClassLoader
 {
@@ -30,6 +36,7 @@ class FilteredClassLoader extends ClassLoader
 	private final String[] fnFilters;
 	private final String[] negativeFilters;
 	private final String[] negativeFNFilters;
+	private final ClassLoader extensionClassLoader;
 
 	public FilteredClassLoader(ClassLoader parent, String[] fs)
 	{
@@ -46,42 +53,7 @@ class FilteredClassLoader extends ClassLoader
 		this.fnFilters = filters2FNFilters(this.filters);
 		this.negativeFNFilters = filters2FNFilters(this.negativeFilters);
 
-		boolean javaCovered = false;
-		if (this.filters == null)
-		{
-			javaCovered = true;
-		}
-		else
-		{
-			for (int i = 0; i < this.filters.length; i++)
-			{
-				if (this.filters[i].equals("java."))
-				{
-					javaCovered = true;
-				}
-			}
-		}
-
-		if (this.negativeFilters != null)
-		{
-			String java = "java.";
-			// try all that would match java: j, ja, jav, java and java.
-			for (int i = java.length(); i >= 0; i--)
-			{
-				for (int j = 0; j < this.negativeFilters.length; j++)
-				{
-					if (negativeFilters[j].equals(java.substring(0, i)))
-					{
-						javaCovered = false;
-					}
-				}
-			}
-		}
-
-		if (!javaCovered)
-		{
-			throw new SecurityException("It's unsafe to construct a " + "FilteredClassLoader that does not let the java. " + "package through.");
-		}
+		extensionClassLoader = getSystemClassLoader().getParent();
 	}
 
 	private static String[] processFilters(String[] fs)
@@ -119,63 +91,85 @@ class FilteredClassLoader extends ClassLoader
 		return f;
 	}
 
-	protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException
+	private boolean isExcluded(String name)
 	{
-		if (negativeFilters != null)
+		if(negativeFilters != null)
 		{
-			for (int i = 0; i < negativeFilters.length; i++)
+			for(String negativeFilter: negativeFilters)
 			{
-				if (name.startsWith(negativeFilters[i]))
+				if (name.startsWith(negativeFilter))
 				{
-					throw new ClassNotFoundException(name);
+					return true;
 				}
 			}
 		}
+		return false;
+	}
 
+	private boolean isIncluded(String name)
+	{
+		if(isExcluded(name))
+		{
+			return false;
+		}
 		if (filters != null)
 		{
-			for (int i = 0; i < filters.length; i++)
+			for(String filter: filters)
 			{
-				if (name.startsWith(filters[i]))
+				if (name.startsWith(filter))
 				{
-					return super.loadClass(name, resolve);
+					return true;
 				}
 			}
+			return false;
 		}
 		else
 		{
+			// if no filters are defined, then we assume everything not excluded is included
+			return true;
+		}
+	}
+
+	protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException
+	{
+		try
+		{
+			extensionClassLoader.loadClass(name);
+		}
+		catch (ClassNotFoundException e)
+		{
+			// purposefully do nothing - since it's not in the system class loader, now we need to apply the filters.
+		}
+		if(isIncluded(name))
+		{
 			return super.loadClass(name, resolve);
 		}
-		throw new ClassNotFoundException(name);
+		else
+		{
+			throw new ClassNotFoundException(name);
+		}
 	}
 
 	public URL getResource(String name)
 	{
-		if (negativeFNFilters != null)
+		URL resource = extensionClassLoader.getResource(name);
+		if(resource == null && isIncluded(name))
 		{
-			for (int i = 0; i < negativeFNFilters.length; i++)
-			{
-				if (name.startsWith(negativeFNFilters[i]))
-				{
-					return null;
-				}
-			}
+			resource = super.getResource(name);
 		}
+		return resource;
+	}
 
-		if (fnFilters != null)
+	@Override
+	public Enumeration<URL> getResources(final String name) throws IOException
+	{
+		if(isIncluded(name))
 		{
-			for (int i = 0; i < fnFilters.length; i++)
-			{
-				if (name.startsWith(fnFilters[i]))
-				{
-					return super.getResource(name);
-				}
-			}
+			return super.getResources(name);
 		}
 		else
 		{
-			return super.getResource(name);
+			return extensionClassLoader.getResources(name);
 		}
-		return null;
 	}
 }
