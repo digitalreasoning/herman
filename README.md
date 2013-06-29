@@ -15,3 +15,5 @@ Iterable<MyServiceInterface> implementations =
                          .includes("com.example.myapi.*")
                          .build();
 ```
+
+[![Build Status](https://travis-ci.org/digitalreasoning/herman.png?branch-master)](https://travis-ci.org/digitalrasoning/herman.png?branch=master)
