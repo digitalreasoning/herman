@@ -82,7 +82,7 @@ class ResourceFinder
 		return resources;
 	}
 
-    private static List<URL> readJarEntries(URL location, String basePath) throws IOException {
+    static List<URL> readJarEntries(URL location, String basePath) throws IOException {
         JarURLConnection conn = (JarURLConnection) location.openConnection();
         JarFile jarfile = null;
         jarfile = conn.getJarFile();
