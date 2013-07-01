@@ -20,8 +20,10 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
+import java.net.URLDecoder;
 import java.net.URLStreamHandler;
 import java.net.URLStreamHandlerFactory;
 import java.util.HashMap;
@@ -64,49 +66,56 @@ public class HermanUrlStreamHandler extends URLStreamHandler
 	private File getEmbeddedJar(String url) throws IOException
 	{
 		File tempJar = extractedJars.get(url);
-		if (tempJar == null)
+		try
 		{
-			URLConnection embededJarCon = new URL(url).openConnection();
-			InputStream input = embededJarCon.getInputStream();
-			tempJar = File.createTempFile(PROTOCOL + "-", ".jar");
-			tempJar.deleteOnExit();
-			OutputStream output = new FileOutputStream(tempJar);
-
-			try
+			if (tempJar == null)
 			{
-				byte[] buffer = new byte[4096];
-				int n = 0;
-				while (-1 != (n = input.read(buffer)))
+				URLConnection embededJarCon = new URL(url).openConnection();
+				InputStream input = embededJarCon.getInputStream();
+				tempJar = File.createTempFile(PROTOCOL + "-", ".jar");
+				tempJar.deleteOnExit();
+				OutputStream output = new FileOutputStream(tempJar);
+
+				try
 				{
-					output.write(buffer, 0, n);
+					byte[] buffer = new byte[4096];
+					int n = 0;
+					while (-1 != (n = input.read(buffer)))
+					{
+						output.write(buffer, 0, n);
+					}
 				}
-			}
-			finally
-			{
-		        try {
-		            if (input != null) {
-		            	input.close();
-		            }
-		        } catch (IOException ioe) {
-		            // ignore
-		        }
-		        try {
-		            if (output != null) {
-		            	output.close();
-		            }
-		        } catch (IOException ioe) {
-		            // ignore
-		        }
-			}
+				finally
+				{
+			        try {
+			            if (input != null) {
+				            input.close();
+			            }
+			        } catch (IOException ioe) {
+			            // ignore
+			        }
+			        try {
+			            if (output != null) {
+				            output.close();
+			            }
+			        } catch (IOException ioe) {
+			            // ignore
+			        }
+				}
 
-			extractedJars.put(url, tempJar);
+				extractedJars.put(url, tempJar);
+			}
+		}
+		catch (Exception e)
+		{
+			throw new IOException("Failed to load embedded jar file " + url, e);
 		}
 		return tempJar;
 	}
 
 	public URLConnection openConnection(final URL url) throws IOException
 	{
-		String urlFile = url.getFile();
+		String urlFile = URLDecoder.decode(url.getFile(), "UTF-8");
 		String embeddedJarURL = urlFile;
 		String resourcePath = "";
 
