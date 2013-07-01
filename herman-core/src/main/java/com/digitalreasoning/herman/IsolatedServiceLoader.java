@@ -29,7 +29,7 @@ import java.util.ServiceLoader;
 
 public class IsolatedServiceLoader<S> implements Iterable<S>
 {
-	private static final String ISOLATED_INTERFACE_PREFIX = "META-INF/isolated/";
+	public static final String ISOLATED_INTERFACE_PREFIX = "META-INF/isolated/";
 	private final Class<S> service;
 	private final ClassLoader classLoader;
 	private final Map<URL, List<URL>> serviceJars;
@@ -75,34 +75,39 @@ public class IsolatedServiceLoader<S> implements Iterable<S>
 
 			private void updateServiceIterator()
 			{
-				if(iterator.hasNext())
-				{
-					ClassLoaderSource classLoaderSource = iterator.next();
+                while(serviceIterator == null || !serviceIterator.hasNext())
+                {
+                    if(iterator.hasNext())
+                    {
+                        ClassLoaderSource classLoaderSource = iterator.next();
 
-					ClassLoader previousContextClassloader = Thread.currentThread().getContextClassLoader();
-                    ClassLoader serviceClassloader = classLoaderSource.getClassLoader();
-					try
-					{
-						Thread.currentThread().setContextClassLoader(serviceClassloader);
-						serviceIterator = serviceLoaderStrategy.runLoader(service, classLoaderSource.getClassLoader()).iterator();
-					}
-                    catch (Exception e)
-                    {
-                        throw new RuntimeException("Tried to load from classloader " + serviceClassloader, e);
+                        ClassLoader previousContextClassloader = Thread.currentThread().getContextClassLoader();
+                        ClassLoader serviceClassloader = classLoaderSource.getClassLoader();
+                        try
+                        {
+                            Thread.currentThread().setContextClassLoader(serviceClassloader);
+                            serviceIterator = serviceLoaderStrategy.runLoader(service, classLoaderSource.getClassLoader()).iterator();
+                        }
+                        catch (Exception e)
+                        {
+                            throw new RuntimeException("Tried to load from classloader " + serviceClassloader, e);
+                        }
+                        catch (LinkageError e)
+                        {
+                            throw new RuntimeException("Tried to load from classloader " + serviceClassloader, e);
+                        }
+                        finally
+                        {
+                            Thread.currentThread().setContextClassLoader(previousContextClassloader);
+                        }
                     }
-                    catch (LinkageError e)
+                    else
                     {
-                        throw new RuntimeException("Tried to load from classloader " + serviceClassloader, e);
+                        serviceIterator = null;
+                        break;
                     }
-					finally
-					{
-						Thread.currentThread().setContextClassLoader(previousContextClassloader);
-					}
-				}
-				else
-				{
-					serviceIterator = null;
-				}
+                }
+
 			}
 
 			@Override
@@ -119,10 +124,7 @@ public class IsolatedServiceLoader<S> implements Iterable<S>
 					throw new NoSuchElementException("No more services.");
 				}
 				S next = serviceIterator.next();
-				if(!serviceIterator.hasNext())
-				{
-					updateServiceIterator();
-				}
+                updateServiceIterator();
 				return next;
 			}
 
@@ -272,7 +274,7 @@ public class IsolatedServiceLoader<S> implements Iterable<S>
 			}else
 			{
 				List<URL> jarUrls = entry.getValue();
-				ucl = new HermanClassLoader(jarUrls.toArray(new URL[jarUrls.size()]), new FilteredClassLoader(parent, includes, excludes), entry.getKey());
+				ucl = new HermanClassLoader(jarUrls.toArray(new URL[jarUrls.size()]), parent, entry.getKey(), includes, excludes);
 				classLoaderCache.put(entry.getKey(), ucl);
 			}
 			return ucl;
