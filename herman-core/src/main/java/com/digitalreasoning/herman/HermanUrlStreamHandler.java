@@ -127,21 +127,30 @@ public class HermanUrlStreamHandler extends URLStreamHandler
 	@Override
 	protected URLConnection openConnection(final URL url) throws IOException
 	{
-		String urlFile = URLDecoder.decode(url.getFile(), "UTF-8");
-
-		if (!urlFile.contains(HERMAN_SEPARATOR))
+		File jarFile = null;
+		String resource;
+		try
 		{
-			return new URL(urlFile).openConnection();
-		}
-		String[] parts = hermanUrlSplitter.split(urlFile);
-		if (parts.length > 2)
-		{
-			throw new MalformedURLException("Url " + url + " contains multiple '^' separators.  We cannot handle that.");
-		}
-		String jarUrl = parts[0];
-		String resource = parts.length < 2 ? "" : parts[1];
+			String urlFile = URLDecoder.decode(url.getFile(), "UTF-8");
 
-		File jarFile = getJarFile(jarUrl);
+			if (!urlFile.contains(HERMAN_SEPARATOR))
+			{
+				return new URL(urlFile).openConnection();
+			}
+			String[] parts = hermanUrlSplitter.split(urlFile);
+			if (parts.length > 2)
+			{
+				throw new MalformedURLException("Url " + url + " contains multiple '^' separators.  We cannot handle that.");
+			}
+			String jarUrl = parts[0];
+			resource = parts.length < 2 ? "" : parts[1];
+
+			jarFile = getJarFile(jarUrl);
+		}
+		catch (Exception e)
+		{
+			throw new IOError(e);
+		}
 		return new URL("jar:" + jarFile.toURI().toURL() + HermanUrlStreamHandler.JAR_SEPARATOR + resource).openConnection();
 	}
 }
