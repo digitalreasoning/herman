@@ -17,10 +17,11 @@ package com.digitalreasoning.herman;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOError;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.URISyntaxException;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLDecoder;
@@ -28,12 +29,14 @@ import java.net.URLStreamHandler;
 import java.net.URLStreamHandlerFactory;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 public class HermanUrlStreamHandler extends URLStreamHandler
 {
 	public static final String PROTOCOL = "herman";
-	public static final String JARJAR_SEPARATOR = "^/";
-	public static final String JAR_SEPARATOR = "!/";
+
+	public static final String HERMAN_SEPARATOR = "^/";
+	private static final String JAR_SEPARATOR = "!/";
 
 	static {
 		doRegister();
@@ -43,8 +46,6 @@ public class HermanUrlStreamHandler extends URLStreamHandler
 	{
 		URL.setURLStreamHandlerFactory(new HermanUrlStreamHandler.HermanURLStreamHandlerFactory());
 	}
-
-	protected Map<String, File> extractedJars = new HashMap<String, File>();
 
 	public static void register()
 	{
@@ -63,81 +64,84 @@ public class HermanUrlStreamHandler extends URLStreamHandler
 		}
 	}
 
-	private File getEmbeddedJar(String url) throws IOException
-	{
-		File tempJar = extractedJars.get(url);
-		try
-		{
-			if (tempJar == null)
-			{
-				URLConnection embededJarCon = new URL(url).openConnection();
-				InputStream input = embededJarCon.getInputStream();
-				tempJar = File.createTempFile(PROTOCOL + "-", ".jar");
-				tempJar.deleteOnExit();
-				OutputStream output = new FileOutputStream(tempJar);
+	private final Map<String, File> jarFileCache = new HashMap<String, File>();
 
+	private File getJarFile(String jarUrl) throws IOException
+	{
+		if (!jarFileCache.containsKey(jarUrl))
+		{
+			URL url = new URL(jarUrl);
+			URLConnection embededJarCon = url.openConnection();
+			InputStream input = embededJarCon.getInputStream();
+			File tempJar = File.createTempFile("herman" + "-", ".jar");
+			tempJar.deleteOnExit();
+			OutputStream output = new FileOutputStream(tempJar);
+
+			try
+			{
+				byte[] buffer = new byte[4096];
+				int n = 0;
+				while (-1 != (n = input.read(buffer)))
+				{
+					output.write(buffer, 0, n);
+				}
+			}
+			catch (Exception e)
+			{
+				throw new IOError(e);
+			}
+			finally
+			{
 				try
 				{
-					byte[] buffer = new byte[4096];
-					int n = 0;
-					while (-1 != (n = input.read(buffer)))
+					if (input != null)
 					{
-						output.write(buffer, 0, n);
+						input.close();
 					}
 				}
-				finally
+				catch (IOException ioe)
 				{
-			        try {
-			            if (input != null) {
-				            input.close();
-			            }
-			        } catch (IOException ioe) {
-			            // ignore
-			        }
-			        try {
-			            if (output != null) {
-				            output.close();
-			            }
-			        } catch (IOException ioe) {
-			            // ignore
-			        }
+					throw new IOError(ioe);
 				}
-
-				extractedJars.put(url, tempJar);
+				try
+				{
+					if (output != null)
+					{
+						output.close();
+					}
+				}
+				catch (IOException ioe)
+				{
+					throw new IOError(ioe);
+				}
 			}
+
+			jarFileCache.put(jarUrl, tempJar);
+
 		}
-		catch (Exception e)
-		{
-			throw new IOException("Failed to load embedded jar file " + url, e);
-		}
-		return tempJar;
+		return jarFileCache.get(jarUrl);
 	}
 
-	public URLConnection openConnection(final URL url) throws IOException
+	final Pattern hermanUrlSplitter = Pattern.compile(HERMAN_SEPARATOR, Pattern.LITERAL);
+
+	@Override
+	protected URLConnection openConnection(final URL url) throws IOException
 	{
 		String urlFile = URLDecoder.decode(url.getFile(), "UTF-8");
-		String embeddedJarURL = urlFile;
-		String resourcePath = "";
 
-		int pos = urlFile.lastIndexOf(JARJAR_SEPARATOR);
-		if (pos >= 0)
+		if (!urlFile.contains(HERMAN_SEPARATOR))
 		{
-			embeddedJarURL = urlFile.substring(0, pos);
-			if (urlFile.length() > pos + JARJAR_SEPARATOR.length())
-			{
-				resourcePath = urlFile.substring(pos + JARJAR_SEPARATOR.length());
-			}
+			return new URL(urlFile).openConnection();
 		}
-
-		if(!embeddedJarURL.startsWith(PROTOCOL))
+		String[] parts = hermanUrlSplitter.split(urlFile);
+		if (parts.length > 2)
 		{
-			URL u = new URL("jar:" + embeddedJarURL + JAR_SEPARATOR + resourcePath);
-			return u.openConnection();
+			throw new MalformedURLException("Url " + url + " contains multiple '^' separators.  We cannot handle that.");
 		}
-		
-		File tempJar = getEmbeddedJar(embeddedJarURL);
-		URL u = new URL(PROTOCOL + ":" + tempJar.getCanonicalFile().toURI().toURL().toExternalForm() + JARJAR_SEPARATOR + resourcePath);
-		return u.openConnection();
+		String jarUrl = parts[0];
+		String resource = parts.length < 2 ? "" : parts[1];
 
+		File jarFile = getJarFile(jarUrl);
+		return new URL("jar:" + jarFile.toURI().toURL() + HermanUrlStreamHandler.JAR_SEPARATOR + resource).openConnection();
 	}
 }

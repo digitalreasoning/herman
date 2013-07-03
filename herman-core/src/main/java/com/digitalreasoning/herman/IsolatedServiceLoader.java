@@ -24,11 +24,14 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.ServiceConfigurationError;
-import java.util.ServiceLoader;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class IsolatedServiceLoader<S> implements Iterable<S>
 {
+	private static final Logger logger = LoggerFactory.getLogger(IsolatedServiceLoader.class);
+
 	public static final String ISOLATED_INTERFACE_PREFIX = "META-INF/isolated/";
 	private final Class<S> service;
 	private final ClassLoader classLoader;
@@ -50,6 +53,11 @@ public class IsolatedServiceLoader<S> implements Iterable<S>
 		this.serviceLoaderStrategy = serviceLoaderStrategy;
 		this.loadFromLocal = loadFromLocal;
 		this.serviceClassLoaders = new HashMap<URL, URLClassLoader>();
+		logger.info("Loading instance of service" + service.getName() + " from " + serviceJars + " isolated classloaders.");
+		for(URL isolatedRoot: serviceJars.keySet())
+		{
+			logger.info("  [" + service.getName() + "] -- " + isolatedRoot);
+		}
 	}
 
 	@Override

@@ -15,8 +15,11 @@
  */
 package com.digitalreasoning.herman;
 
+import java.io.File;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.net.JarURLConnection;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Enumeration;
@@ -72,6 +75,36 @@ class ResourceFinder
 						resources.put(location, jarUrls);
 					}
 				}
+				else if (location.getProtocol().equals("file"))
+				{
+					File root;
+					try {
+						root = new File(location.toURI());
+					} catch(URISyntaxException e) {
+						root = new File(location.getPath());
+					}
+					final File[] jarFiles = root.listFiles(new FilenameFilter()
+					{
+						@Override
+						public boolean accept(final File dir, final String name)
+						{
+							return name.endsWith(".jar");
+						}
+					});
+					if(jarFiles != null)
+					{
+						List<URL> jarUrls = new ArrayList<URL>();
+						for(File file: jarFiles)
+						{
+							jarUrls.add(file.toURI().toURL());
+						}
+						resources.put(location, jarUrls);
+					}
+				}
+				else
+				{
+					throw new IOException("Herman only supports jars at 'file:' and 'jar:' urls.  Not from " + location);
+				}
 			}
 			catch (Exception e)
 			{
@@ -102,12 +135,8 @@ class ResourceFinder
             if (name.contains("/")) {
                 continue;
             }
-            
-            URL resource = new URL(HermanUrlStreamHandler.PROTOCOL, location.getHost(), location.getPort(), HermanUrlStreamHandler.PROTOCOL + ":" + location.getFile()
-                                                                                                                                                                  .replace
-		            (HermanUrlStreamHandler
-				             .JAR_SEPARATOR,
-		             HermanUrlStreamHandler.JARJAR_SEPARATOR) + name + HermanUrlStreamHandler.JARJAR_SEPARATOR);
+
+	        URL resource = new URL(HermanUrlStreamHandler.PROTOCOL + ":" + location.toString() + name + HermanUrlStreamHandler.HERMAN_SEPARATOR);
             entryUrls.add(resource);
         }
         return entryUrls;
