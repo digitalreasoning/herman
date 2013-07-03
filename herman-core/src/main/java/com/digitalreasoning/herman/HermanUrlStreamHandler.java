@@ -29,6 +29,7 @@ import java.net.URLStreamHandler;
 import java.net.URLStreamHandlerFactory;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.regex.Pattern;
 
 public class HermanUrlStreamHandler extends URLStreamHandler
@@ -38,9 +39,14 @@ public class HermanUrlStreamHandler extends URLStreamHandler
 	public static final String HERMAN_SEPARATOR = "^/";
 	private static final String JAR_SEPARATOR = "!/";
 
+	private static File EXTRACT_DIR;
 	static {
 		doRegister();
+
+		EXTRACT_DIR = new File(System.getProperty("java.io.tmpdir"), "herman-" + UUID.randomUUID());
+		EXTRACT_DIR.mkdirs();
 	}
+
 
 	static void doRegister()
 	{
@@ -73,7 +79,7 @@ public class HermanUrlStreamHandler extends URLStreamHandler
 			URL url = new URL(jarUrl);
 			URLConnection embededJarCon = url.openConnection();
 			InputStream input = embededJarCon.getInputStream();
-			File tempJar = File.createTempFile("herman" + "-", ".jar");
+			File tempJar = File.createTempFile(PROTOCOL + "-", ".jar", EXTRACT_DIR);
 			tempJar.deleteOnExit();
 			OutputStream output = new FileOutputStream(tempJar);
 
