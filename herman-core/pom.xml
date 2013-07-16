@@ -20,12 +20,12 @@
     <parent>
         <groupId>com.digitalreasoning.herman</groupId>
         <artifactId>herman-parent</artifactId>
-        <version>0.5.1-SNAPSHOT</version>
+        <version>0.5.1</version>
     </parent>
 
     <groupId>com.digitalreasoning.herman</groupId>
     <artifactId>herman-core</artifactId>
-    <version>0.5.1-SNAPSHOT</version>
+    <version>0.5.1</version>
 	<name>Herman :: Core</name>
 
     <dependencies>
