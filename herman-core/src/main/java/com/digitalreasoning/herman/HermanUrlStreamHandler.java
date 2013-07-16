@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLDecoder;
@@ -141,21 +142,31 @@ public class HermanUrlStreamHandler extends URLStreamHandler
 
 			if (!urlFile.contains(HERMAN_SEPARATOR))
 			{
-				return new URL(urlFile).openConnection();
+				URI uri = new URI(urlFile);
+				if(uri.getScheme() == null)
+				{
+					throw new MalformedURLException("Url " + url + " does not have a sub-protocol.  Herman protocols are required to have a sub-protocol.");
+				}
+				return uri.toURL().openConnection();
 			}
 			String[] parts = hermanUrlSplitter.split(urlFile);
 			if (parts.length > 2)
 			{
-				throw new MalformedURLException("Url " + url + " contains multiple '^' separators.  We cannot handle that.");
+				throw new IllegalArgumentException("Url " + url + " contains multiple '^' separators.  We cannot handle that.");
 			}
 			String jarUrl = parts[0];
 			resource = parts.length < 2 ? "" : parts[1];
 
 			jarFile = getJarFile(jarUrl);
 		}
+		catch (MalformedURLException e)
+		{
+			throw e;
+		}
 		catch (Exception e)
 		{
-			throw new IOError(e);
+			final IOError ioError = new IOError(e);
+			throw ioError;
 		}
 		return new URL("jar:" + jarFile.toURI().toURL() + HermanUrlStreamHandler.JAR_SEPARATOR + resource).openConnection();
 	}

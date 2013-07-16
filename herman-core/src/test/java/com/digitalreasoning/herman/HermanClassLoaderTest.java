@@ -9,6 +9,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.IOError;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -16,6 +17,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
@@ -44,6 +46,19 @@ public class HermanClassLoaderTest {
             final List<URL> urls = nested.getValue();
             final HermanClassLoader hermanClassLoader = new HermanClassLoader(urls.toArray(new URL[urls.size()]), HermanClassLoaderTest.class.getClassLoader(), nested.getKey(), new String[0], new String[0]);
             final URL resource = hermanClassLoader.getResource("META-INF/services/" + SERVICE);
+	        for(String path: Arrays.asList("/", "/frank", "/frank/", "/blah.txt", "/frank/blah.txt", "META-INF/services/" + SERVICE))
+	        {
+		        try
+		        {
+			        System.out.println(path + " :::: " + hermanClassLoader.getResource(path));
+		        }
+		        catch (IOError e)
+		        {
+			        e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+		        }
+
+	        }
+
             System.out.println("JAR:: " + nested.getKey());
             System.out.println("      " + resource);
         }
