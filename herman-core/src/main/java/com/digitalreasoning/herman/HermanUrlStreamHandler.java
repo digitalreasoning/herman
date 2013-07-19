@@ -21,6 +21,8 @@ import java.io.IOError;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
@@ -33,12 +35,20 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
+import org.kohsuke.MetaInfServices;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+@MetaInfServices(URLStreamHandler.class)
 public class HermanUrlStreamHandler extends URLStreamHandler
 {
+	private static final Logger logger = LoggerFactory.getLogger(HermanUrlStreamHandler.class);
+
 	public static final String PROTOCOL = "herman";
 
 	public static final String HERMAN_SEPARATOR = "^/";
-	private static final String JAR_SEPARATOR = "!/";
+	static final String JAR_SEPARATOR = "!/";
+	public static final HermanUrlStreamHandler INSTANCE = new HermanUrlStreamHandler();
 
 	private static File EXTRACT_DIR;
 	static {
@@ -51,7 +61,69 @@ public class HermanUrlStreamHandler extends URLStreamHandler
 
 	static void doRegister()
 	{
-		URL.setURLStreamHandlerFactory(new HermanUrlStreamHandler.HermanURLStreamHandlerFactory());
+		try
+		{
+			URL.setURLStreamHandlerFactory(new HermanUrlStreamHandler.HermanURLStreamHandlerFactory());
+		}
+		catch(Error e)
+		{
+			// suppress error - let's hope something picks up via service loader
+		}
+
+		// hack for jboss support
+		try
+		{
+			logger.debug("Trying jboss url stream handler hack...");
+			Class<?> moduleClass = getJBossModuleClass();
+			Method moduleForClassMethod = moduleClass.getMethod("forClass", Class.class);
+			Object module = moduleForClassMethod.invoke(null, HermanUrlStreamHandler.class);
+			if(module == null)
+			{
+				throw new IllegalStateException("Herman apparently was not loaded by a module?");
+			}
+			Method registerUrlHandlerMethod = moduleClass.getMethod("registerURLStreamHandlerFactoryModule", moduleClass);
+			registerUrlHandlerMethod.invoke(null, module);
+			logger.debug("Jboss url stream handler hack complete...");
+		}
+		catch (ClassNotFoundException e)
+		{
+			logger.debug("Could not find jboss Module class, not doing hacky jboss registration strategy.", e);
+		}
+		catch (NoSuchMethodException e)
+		{
+			logger.debug("Could not find jboss Module class, not doing hacky jboss registration strategy.", e);
+			throw new IllegalStateException("Could not locate necessary method for jboss hack.", e);
+		}
+		catch (InvocationTargetException e)
+		{
+			logger.debug("Could not find jboss Module class, not doing hacky jboss registration strategy.", e);
+			throw new IllegalStateException("Could not load herman as a url module.", e);
+		}
+		catch (IllegalAccessException e)
+		{
+			logger.debug("Could not find jboss Module class, not doing hacky jboss registration strategy.", e);
+			throw new IllegalStateException("Could not load herman as a url module.", e);
+		}
+	}
+
+	private static Class<?> getJBossModuleClass() throws ClassNotFoundException
+	{
+		final String moduleClassName = "org.jboss.modules.Module";
+		try
+		{
+			return HermanUrlStreamHandler.class.getClassLoader().loadClass(moduleClassName);
+		}
+		catch (ClassNotFoundException e)
+		{
+			try
+			{
+				return Thread.currentThread().getContextClassLoader().loadClass(moduleClassName);
+			}
+			catch (ClassNotFoundException e1)
+			{
+				return ClassLoader.getSystemClassLoader().loadClass(moduleClassName);
+			}
+		}
 	}
 
 	public static void register()
@@ -65,7 +137,7 @@ public class HermanUrlStreamHandler extends URLStreamHandler
 		{
 			if (protocol.equals(PROTOCOL))
 			{
-				return new HermanUrlStreamHandler();
+				return INSTANCE;
 			}
 			return null;
 		}
