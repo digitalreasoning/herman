@@ -146,12 +146,16 @@ public class HermanUrlStreamHandler extends URLStreamHandler
 			String[] parts = hermanUrlSplitter.split(urlFile);
 			if (parts.length > 2)
 			{
-				throw new MalformedURLException("Url " + url + " contains multiple '^' separators.  We cannot handle that.");
+				throw new IOError(new MalformedURLException("Url " + url + " contains multiple '^' separators.  We cannot handle that."));
 			}
 			String jarUrl = parts[0];
 			resource = parts.length < 2 ? "" : parts[1];
 
 			jarFile = getJarFile(jarUrl);
+		}
+		catch (MalformedURLException e)
+		{
+			throw e;
 		}
 		catch (Exception e)
 		{

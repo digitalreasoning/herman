@@ -25,6 +25,8 @@ import java.util.zip.ZipInputStream;
 
 import net.peachjean.commons.test.junit.TmpDir;
 
+import static org.junit.Assert.fail;
+
 public class HermanClassLoaderTest {
 
     public static final String SERVICE = "com.digitalreasoning.harvest.io.IHarvestFactorySource";
@@ -68,6 +70,29 @@ public class HermanClassLoaderTest {
 			final URL resource = hermanClassLoader.getResource("META-INF/services/" + SERVICE);
 			System.out.println("JAR:: " + nested.getKey());
 			System.out.println("      " + resource);
+		}
+	}
+
+	@Test
+	public void testGettingRootResourceDoesntFail() throws IOException
+	{
+
+		final URL[] locations = getUrls();
+		final ClassLoader parentLoader = new URLClassLoader(locations);
+		final ResourceFinder resourceFinder = new ResourceFinder(parentLoader);
+		final Map<URL,List<URL>> nestedJars = resourceFinder.getNestedJars(IsolatedServiceLoader.ISOLATED_INTERFACE_PREFIX + SERVICE);
+
+		if (nestedJars.isEmpty())
+		{
+			fail("No jars to test...");
+		}
+		for(Map.Entry<URL, List<URL>> nested: nestedJars.entrySet())
+		{
+			final List<URL> urls = nested.getValue();
+			final HermanClassLoader hermanClassLoader =
+					new HermanClassLoader(urls.toArray(new URL[urls.size()]), HermanClassLoaderTest.class.getClassLoader(), nested.getKey(), new String[0], new String[0]);
+			final URL resource = hermanClassLoader.getResource("/");
+			System.out.println("Root Resource:: " + resource);
 		}
 	}
 
@@ -132,6 +157,6 @@ public class HermanClassLoaderTest {
     }
 
     private URL getUrl(final String impl) throws MalformedURLException {
-        return new File(System.getProperty("user.home") + "/.m2/repository/com/digitalreasoning/harvest/harvest-execution-" + impl + "-isolated/3.21.0-SNAPSHOT/harvest-execution-" + impl + "-isolated-3.21.0-SNAPSHOT.jar").toURI().toURL();
+        return new File(System.getProperty("user.home") + "/.m2/repository/com/digitalreasoning/harvest/harvest-execution-" + impl + "-isolated/3.23.2/harvest-execution-" + impl + "-isolated-3.23.2.jar").toURI().toURL();
     }
 }
