@@ -184,4 +184,17 @@ class FilteredClassLoader extends ClassLoader
 			return extensionClassLoader.getResources(name);
 		}
 	}
+
+	@Override
+	protected Package getPackage(String name)
+	{
+		if(isIncluded(name, false))
+		{
+			return super.getPackage(name);
+		}
+		else
+		{
+			return null;
+		}
+	}
 }
